@@ -1,45 +1,130 @@
-import prisma from "../lib/prisma"; 
-import bcrypt from "bcrypt";
-// import jwt from "jsonwebtoken";
-import { signToken } from "../utils/jwt";
+import prisma from "../lib/prisma.js";
+import bcrypt from "bcryptjs";
+import { signToken } from "../utils/jwt.js";
+import { OAuth2Client } from "google-auth-library";
+import { createUserSchema ,loginUserSchema} from "../validators/user.validator.js";
+
+
+//google auth
+const client=new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+export const googleLogin = async (req, res) => {
+    const { idToken} = req.body;
+    try {
+        const ticket = await client.verifyIdToken({
+            idToken,
+            audience: process.env.GOOGLE_CLIENT_ID,
+        });
+        const { email, name } = ticket.getPayload();
+  let user = await prisma.user.findUnique({ where: { email } });
+
+    if (!user) {
+      user = await prisma.user.create({
+        data: {
+          email,
+          fullName: name,
+          imageUrl: picture,
+          password: "", // optional, since it's Google login
+        },
+      });
+    }
+
+    const token = jwt.sign(
+      { userId: user.id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    res.json({
+      token,
+      user: {
+
+        fullName: user.fullName, 
+        imageUrl: user.imageUrl,
+        role:user.role
+
+      },
+    });
+  } catch (err) {
+    console.error("Google login failed:", err);
+    res.status(401).json({ message: "Invalid Google token" });
+  }
+};
+
 
 //signup
 export const signupUser = async (req, res) => {
-    const { fullName, email, password } = req.body;
-    const user = await prisma.user.findUnique({ where: { email } });
-    if (user) {
-        return res.status(400).json({ message: "User already exists" });
-    }
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = await prisma.user.create({
-        data: {
-            fullName,
-            email,
-            password: hashedPassword,
-        },
+  try {
+      const validatedUser = createUserSchema.safeParse(req.body);
+        if (!validatedUser.success) {
+    // Zod error block
+        return res.status(400).json({ 
+      message: "Validation failed", 
+      errors: validatedUser.error.errors, // <- Here Zod validation errors are returned
     });
-    const token = signToken({ id: newUser.id });
-    res.status(201).json({
-        message: 'User created',
-        token, 
-        user: {name: user.fullName } });
+     }
+
+     const { fullName, email, password } = validatedUser.data;
+
+      const user = await prisma.user.findUnique({ where: { email } });
+      if (user) {
+          return res.status(400).json({ message: "User already exists" });
+      }
+      const hashedPassword = await bcrypt.hash(password, 10);
+      const newUser = await prisma.user.create({
+          data: {
+              fullName,
+              email,
+              password: hashedPassword,
+          },
+      });
+      const token = signToken({ id: newUser.id });
+      res.status(201).json({
+          message: 'User created',
+          token, 
+          user: {fullName: newUser.fullName,  
+              imageUrl: newUser.imageUrl,
+              role:newUser.role ,
+   } });
+  } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: "Internal server error" });
+  }
 };
 
 // login
 
 export const loginUser = async (req, res) => {
-    const { email, password } = req.body;
-    const user = await prisma.user.findUnique({ where: { email } });
-    if (!user) {
-        return res.status(401).json({ message: "Invalid credentials" });
+    try {
+ const validatedUser = loginUserSchema.safeParse(req.body);
+        if (!validatedUser.success) {
+    // Zod error block
+        return res.status(400).json({ 
+      message: "Validation failed", 
+      errors: validatedUser.error.errors, // <- Here Zod validation errors are returned
+    });
+     }
+
+
+        const { email, password } = validatedUser.data;
+        const user = await prisma.user.findUnique({ where: { email } });
+        if (!user) {
+            return res.status(401).json({ message: "Invalid credentials" });
+        }
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+        if (!isPasswordValid) {
+            return res.status(401).json({ message: "Invalid credentials" });
+        }
+        const token = signToken({ id: user.id });
+        res.json({
+            message: "Login successful",
+            token, 
+            user: { fullName: user.fullName,
+                imageUrl: user.imageUrl,
+                role:user.role } }) 
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Internal server error" }); 
+        
     }
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
-        return res.status(401).json({ message: "Invalid credentials" });
-    }
-    const token = signToken({ id: user.id });
-    res.json({
-        message: "Login successful",
-        token, 
-        user: { name: user.fullName,role:user.role } });
+
 };

@@ -1,0 +1,1 @@
+console.log("Ami Config_file");
