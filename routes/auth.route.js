@@ -1,12 +1,18 @@
 import express from "express";
-import { loginUser, signupUser } from "../controllers/auth.controller.js";
+import { loginUser, signupUser, logoutUser, googleLogin } from "../controllers/auth.controller.js";
 import { authenticate } from "../middleware/auth.middleware.js";
 import { authorize } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 
 router.post("/login", loginUser);
+
 router.post("/signup", signupUser);
+
+router.post("/logout", logoutUser);
+
+router.post("/google", googleLogin);
+
 router.get("/profile", authenticate, authorize(["USER","ADMIN"]), (req, res) => {
     res.json({ user: req.user });
 });

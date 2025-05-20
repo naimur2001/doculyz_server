@@ -1,28 +1,41 @@
 import { verifyToken } from "../utils/jwt.js";
 
-export const authenticate = (req,res,next) => {
-   const authHeader = req.headers.authorization;
+// Authentication Middleware
+export const authenticate = (req, res, next) => {
+   let token;
 
-  if (!authHeader?.startsWith('Bearer ')) {
-    return res.status(401).json({ message: 'No token provided' });
+  // Check Authorization header (Bearer token)
+  const authHeader = req.headers.authorization;
+  if (authHeader?.startsWith("Bearer ")) {
+    token = authHeader.split(" ")[1];
   }
 
-  const token = authHeader.split(' ')[1];
+  // Fallback to token from cookies
+  if (!token && req.cookies?.token) {
+    token = req.cookies.token;
+  }
 
+  // If no token found
+  if (!token) {
+    return res.status(401).json({ message: "Unauthorized: No token provided" });
+  }
+
+  // Verify token
   try {
     const decoded = verifyToken(token);
-    req.user = decoded;  // contains userId and role
+    req.user = decoded;
     next();
   } catch (err) {
-    res.status(401).json({ message: 'Invalid or expired token' });
+    return res.status(401).json({ message: "Unauthorized: Invalid token" });
   }
 };
 
+//  Authorization Middleware
 export const authorize = (roles = []) => {
   return (req, res, next) => {
     if (!roles.includes(req.user.role)) {
-      return res.status(403).json({ message: 'Forbidden: Insufficient permission' });
+      return res.status(403).json({ message: "Forbidden: Not allowed" });
     }
     next();
   };
-}
+};

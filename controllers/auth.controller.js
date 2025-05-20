@@ -5,6 +5,7 @@ import { OAuth2Client } from "google-auth-library";
 import { createUserSchema ,loginUserSchema} from "../validators/user.validator.js";
 
 
+
 //google auth
 const client=new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 export const googleLogin = async (req, res) => {
@@ -34,11 +35,20 @@ export const googleLogin = async (req, res) => {
       { expiresIn: "7d" }
     );
 
+  // Set cookie instead of sending token directly
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    });
+
     res.json({
       token,
       user: {
 
-        fullName: user.fullName, 
+        fullName: user.fullName,
+        email: user.email, 
         imageUrl: user.imageUrl,
         role:user.role
 
@@ -78,10 +88,20 @@ export const signupUser = async (req, res) => {
           },
       });
       const token = signToken({ id: newUser.id });
+
+
+res.cookie("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "Strict",
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    });
+
       res.status(201).json({
           message: 'User created',
           token, 
           user: {fullName: newUser.fullName,  
+            email: newUser.email,
               imageUrl: newUser.imageUrl,
               role:newUser.role ,
    } });
@@ -115,10 +135,19 @@ export const loginUser = async (req, res) => {
             return res.status(401).json({ message: "Invalid credentials" });
         }
         const token = signToken({ id: user.id });
+
+      res.cookie("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "Strict",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      });
+
         res.json({
             message: "Login successful",
             token, 
             user: { fullName: user.fullName,
+              email: user.email,
                 imageUrl: user.imageUrl,
                 role:user.role } }) 
     } catch (error) {
@@ -127,4 +156,19 @@ export const loginUser = async (req, res) => {
         
     }
 
+};
+
+//logout
+// ✅ Logout
+export const logoutUser = (req, res) => {
+  try {
+    res.clearCookie("token", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "Strict",
+  });
+  res.status(200).json({ message: "Logout successful" });
+  } catch (error) {
+   console.log(error.message); 
+  }
 };
