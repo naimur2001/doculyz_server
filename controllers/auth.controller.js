@@ -87,7 +87,11 @@ export const signupUser = async (req, res) => {
               password: hashedPassword,
           },
       });
-      const token = signToken({ id: newUser.id });
+      const token = signToken({ id: newUser.id,
+          role: newUser.role,
+          fullName: newUser.fullName,
+            email: newUser.email
+       });
 
 
 res.cookie("token", token, {
@@ -104,6 +108,7 @@ res.cookie("token", token, {
             email: newUser.email,
               imageUrl: newUser.imageUrl,
               role:newUser.role ,
+
    } });
   } catch (error) {
       console.error(error);
@@ -134,7 +139,11 @@ export const loginUser = async (req, res) => {
         if (!isPasswordValid) {
             return res.status(401).json({ message: "Invalid credentials" });
         }
-        const token = signToken({ id: user.id });
+        const token = signToken({ id: user.id,
+            role: user.role,
+            fullName: user.fullName,
+            email: user.email
+         });
 
       res.cookie("token", token, {
       httpOnly: true,
@@ -157,6 +166,8 @@ export const loginUser = async (req, res) => {
     }
 
 };
+
+
 
 //logout
 // ✅ Logout

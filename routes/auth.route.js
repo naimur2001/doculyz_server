@@ -14,7 +14,13 @@ router.post("/logout", logoutUser);
 router.post("/google", googleLogin);
 
 router.get("/profile", authenticate, authorize(["USER","ADMIN"]), (req, res) => {
-    res.json({ user: req.user });
+//  console.log("Authenticated user:", req.user); // Logging req.user
+   
+    // res.json({ user: req.user });
+    const { fullName, email, imageUrl, role } = req.user; // from JWT
+  res.json({
+    user: { fullName, email, imageUrl, role }
+  });
 });
 
 export default router;
