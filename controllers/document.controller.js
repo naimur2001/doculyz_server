@@ -1,6 +1,8 @@
 import prisma from "../lib/prisma.js";
 import path from "path";
 import fs from "fs";
+import Tesseract from "tesseract.js";
+import convertPdfToImages from "../middleware/pdfToImages.js";
 
 // create document
 export const createDocument = async (req, res) => {
@@ -11,11 +13,52 @@ export const createDocument = async (req, res) => {
     }
         const title = path.parse(file.originalname).name;
 
-    const documet =await prisma.document.create({
+
+      const existing = await prisma.document.findFirst({
+        where: {
+          filename: title,
+          userId: req.user.id 
+          // ✅ Only blocks *this* user's duplicates
+        },
+      })
+       if (existing) {
+          return res.status(400).json({ message: "file already scaned" });
+      }
+
+         let extractedText = "";
+
+    if (file.mimetype === "application/pdf") {
+      // Convert PDF pages to images
+      const imagesToProcess = await convertPdfToImages(file.path);
+      if (!imagesToProcess.length) {
+        return res.status(500).json({ message: "Failed to convert PDF to images" });
+      }
+
+      for (const imgPath of imagesToProcess) {
+        const { data: { text } } = await Tesseract.recognize(imgPath, "eng", {
+          logger: (m) => m,
+        });
+        extractedText += text + "\n\n";
+      }
+      // console.log(extractedText)
+    } else if (file.mimetype.startsWith("image/")) {
+      // Direct OCR for images
+      const { data: { text } } = await Tesseract.recognize(file.path, "eng", {
+        logger: (m) => m,
+      });
+  extractedText = text;
+  // console.log(extractedText)
+    } else {
+      return res.status(400).json({ message: "Unsupported file type" });
+    }
+        
+
+    const document =await prisma.document.create({
       data: {
         filename: title,
         filepath: file.path,
         userId: req.user.id,
+        extracted: extractedText,
       },
     });
     res.status(201).json({
@@ -23,7 +66,7 @@ export const createDocument = async (req, res) => {
       document,
     });
   } catch (error) {
-    console.error(error);
+    console.error("Upload + OCR Error:", error);
     res.status(500).json({ message: "Server error" });  
   }
 }
@@ -111,13 +154,14 @@ export const searchDocumentsByTitle = async (req, res) => {
   try {
     const { title } = req.query;
     const documents = await prisma.document.findMany({
-      where: {
-        title: {
-          contains: title,
-          mode: "insensitive",
-        },
-        isDeleted: false,
-      },
+   where: {
+  isDeleted: false,
+  OR: [
+    { filename: { contains: title, mode: "insensitive" } },
+    { textContent: { contains: title, mode: "insensitive" } },
+  ],
+}
+,
       take: 10,
       orderBy: {
         createdAt: "desc",
