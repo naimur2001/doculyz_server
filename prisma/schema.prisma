@@ -33,11 +33,11 @@ model Document {
   
 
   id        String   @id @default(uuid())
-  filename  String
-  filepath  String
+  fileName  String
+  filePath  String
   extracted Json?
   isDeleted Boolean @default(false)
-  status    DocumentStatus   @default(PENDING)
+  status    DocumentStatus   @default(COMPLETED)
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id])
   userId    String

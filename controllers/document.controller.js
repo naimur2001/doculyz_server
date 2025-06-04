@@ -16,7 +16,7 @@ export const createDocument = async (req, res) => {
 
       const existing = await prisma.document.findFirst({
         where: {
-          filename: title,
+          fileName: title,
           userId: req.user.id 
           // ✅ Only blocks *this* user's duplicates
         },
@@ -55,8 +55,8 @@ export const createDocument = async (req, res) => {
 
     const document =await prisma.document.create({
       data: {
-        filename: title,
-        filepath: file.path,
+        fileName: title,
+        filePath: file.path,
         userId: req.user.id,
         extracted: extractedText,
       },
@@ -89,8 +89,8 @@ export const deleteDocument = async (req, res) => {
       return res.status(403).json({ message: "Unauthorized" });
     }
   // Optional: remove file from disk
-    if (fs.existsSync(document.filepath)) {
-      fs.unlinkSync(document.filepath);
+    if (fs.existsSync(document.filePath)) {
+      fs.unlinkSync(document.filePath);
     }
     await prisma.document.update({
       where: { id },
