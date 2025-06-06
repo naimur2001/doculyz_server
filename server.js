@@ -11,7 +11,7 @@ const app = express();
 // ✅ Only allow frontend origin + allow credentials
 app.use(
   cors({
-    origin: "http://localhost:3000", // your frontend URL
+    origin: "https://doculyz-client.vercel.app/", // your frontend URL
     credentials: true,
   })
 );
