@@ -1,32 +1,47 @@
 import path from "path";
-import poppler from "pdf-poppler";
 import fs from "fs";
+import { fromPath } from "pdf2pic";
 
-const convertPdfToImages= async(pdfPath) =>{
+const convertPdfToImages = async (pdfPath) => {
   const outputDir = path.dirname(pdfPath);
   const fileNameWithoutExt = path.parse(pdfPath).name;
-  
+
   const options = {
+    density: 100,
+    saveFilename: fileNameWithoutExt,
+    savePath: outputDir,
     format: "png",
-    out_dir: outputDir,
-    out_prefix: fileNameWithoutExt,
-    page: null, // convert all pages
+    width: 800,
+    height: 1000,
   };
 
-  try {
-    await poppler.convert(pdfPath, options);
+  const convert = fromPath(pdfPath, options);
 
-    // Collect generated image file paths
-    const files = fs.readdirSync(outputDir);
-    const imageFiles = files
-      .filter(file => file.startsWith(fileNameWithoutExt) && file.endsWith(".png"))
-      .map(file => path.join(outputDir, file));
+  try {
+    const totalPages = await getPageCount(pdfPath); // helper below
+
+    const conversionPromises = [];
+    for (let page = 1; page <= totalPages; page++) {
+      conversionPromises.push(convert(page));
+    }
+
+    const results = await Promise.all(conversionPromises);
+
+    const imageFiles = results.map(result => result.path);
 
     return imageFiles;
   } catch (error) {
     console.error("PDF to image conversion error:", error);
     throw error;
   }
-}
+};
 
-export default convertPdfToImages
+// Helper function to get total pages using pdf-lib
+import { PDFDocument } from "pdf-lib";
+const getPageCount = async (pdfPath) => {
+  const data = await fs.promises.readFile(pdfPath);
+  const pdfDoc = await PDFDocument.load(data);
+  return pdfDoc.getPageCount();
+};
+
+export default convertPdfToImages;
