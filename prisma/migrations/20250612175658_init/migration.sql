@@ -21,10 +21,11 @@ CREATE TABLE "User" (
 -- CreateTable
 CREATE TABLE "Document" (
     "id" TEXT NOT NULL,
-    "filename" TEXT NOT NULL,
-    "filepath" TEXT NOT NULL,
+    "fileName" TEXT NOT NULL,
+    "filePath" TEXT NOT NULL,
     "extracted" JSONB,
-    "status" "DocumentStatus" NOT NULL DEFAULT 'PENDING',
+    "isDeleted" BOOLEAN NOT NULL DEFAULT false,
+    "status" "DocumentStatus" NOT NULL DEFAULT 'COMPLETED',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "userId" TEXT NOT NULL,
 

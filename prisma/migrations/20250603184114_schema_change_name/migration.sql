@@ -1,3 +1,0 @@
--- AlterTable
-ALTER TABLE "Document" ALTER COLUMN "fileName" DROP NOT NULL,
-ALTER COLUMN "filePath" DROP NOT NULL;
